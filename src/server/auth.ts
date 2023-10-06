@@ -1,13 +1,12 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import {
   getServerSession,
   type DefaultSession,
   type NextAuthOptions,
 } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
-
 import { env } from "~/env.mjs";
 import { db } from "~/server/db";
+import { CustomPrismaAdapter } from "./CustomPrismaAdapter";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -45,7 +44,7 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   },
-  adapter: PrismaAdapter(db),
+  adapter: CustomPrismaAdapter(db),
   providers: [
     DiscordProvider({
       clientId: env.DISCORD_CLIENT_ID,
@@ -64,7 +63,7 @@ export const authOptions: NextAuthOptions = {
 };
 
 /**
- * Returns the session object for usage with RSC.
+ * Returns the session object for usage with RSC
  *
  * @see https://next-auth.js.org/configuration/nextjs
  */
