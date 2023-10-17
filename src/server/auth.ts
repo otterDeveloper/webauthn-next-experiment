@@ -8,8 +8,14 @@ import { env } from "~/env.mjs";
 import superjson from "superjson";
 import { db } from "~/server/db";
 import { CustomPrismaAdapter } from "./CustomPrismaAdapter";
-import { RegistrationResponseJSON } from "@simplewebauthn/server/script/deps";
-import { verifyRegistrationResponse } from "@simplewebauthn/server";
+import {
+	AuthenticationResponseJSON,
+	RegistrationResponseJSON,
+} from "@simplewebauthn/server/script/deps";
+import {
+	verifyAuthenticationResponse,
+	verifyRegistrationResponse,
+} from "@simplewebauthn/server";
 import { Prisma } from "@prisma/client";
 import { deserialize, serialize } from "v8";
 /**
@@ -61,6 +67,7 @@ export const authOptions: NextAuthOptions = {
 					},
 					include: {
 						authenticators: true,
+						userPendingAssertion: true,
 					},
 				});
 
@@ -109,9 +116,9 @@ export const authOptions: NextAuthOptions = {
 						credentialPublicKey,
 						credentialBackedUp,
 						credentialDeviceType,
-            attestationObject,
-            authenticatorExtensionResults,
-            ...rest
+						attestationObject,
+						authenticatorExtensionResults,
+						...rest
 					} = registrationInfo;
 					const user = await db.user.create({
 						data: {
@@ -126,20 +133,86 @@ export const authOptions: NextAuthOptions = {
 									credentialPublicKey: Buffer.from(credentialPublicKey),
 									credentialDeviceType,
 									transports: registrationResponse.response.transports ?? [],
-                  attestationObject: Buffer.from(attestationObject),
-                  // this is probably very bad:
-                  authenticatorExtensionResults: serialize(authenticatorExtensionResults),
-                  metadata: rest as Prisma.InputJsonValue,
+									attestationObject: Buffer.from(attestationObject),
+									// this is probably very bad:
+									authenticatorExtensionResults: serialize(
+										authenticatorExtensionResults,
+									),
+									metadata: rest as Prisma.InputJsonValue,
 								},
 							},
 						},
 					});
-          await db.pendingAssertions.delete({
+					await db.pendingAssertions.delete({
+						where: {
+							email: credentials.email,
+						},
+					});
+					return user;
+				} else {
+					if (user.authenticators.length === 0) {
+						throw new Error("No authenticators found");
+					}
+					if (!user.userPendingAssertion?.challenge) {
+						throw new Error("No pending assertion found");
+					}
+
+					// TODO: pass this trough Zod
+					const authenticationResponse =
+						superjson.parse<AuthenticationResponseJSON>(credentials.payload);
+
+          //TODO do this in sql
+					const authenticator = user.authenticators.find(
+						(authenticator) =>
+							authenticator.credentialID.toString("base64url") ===
+							authenticationResponse.id,
+					);
+					if (!authenticator) {
+						throw new Error("No authenticator found");
+					}
+
+					let verification;
+					try {
+						verification = await verifyAuthenticationResponse({
+							response: authenticationResponse,
+							expectedChallenge: user.userPendingAssertion.challenge,
+							authenticator: {
+								counter: Number(authenticator.counter),
+								credentialID: authenticator.credentialID,
+								credentialPublicKey: authenticator.credentialPublicKey,
+								transports:
+									authenticator.transports as AuthenticatorTransport[],
+							},
+							expectedOrigin: env.NEXTAUTH_URL,
+							expectedRPID: env.RP_ID,
+						});
+						if (!verification.verified) {
+							throw new Error("Verification failed");
+						}
+					} catch (e) {
+						console.error(e);
+						return null;
+					}
+
+          const {verified, authenticationInfo} = verification;
+
+          if (!verified || !authenticationInfo) {
+            console.error("Authentication not verified");
+            return null;
+          }
+          await db.authenticator.update({
             where: {
-              email: credentials.email,
+              credentialID: authenticator.credentialID,
+            },
+            data: {
+              counter: authenticationInfo.newCounter,
             },
           });
-          return user;
+          await db.userPendingAssertions.delete({
+            where: {
+              userId: user.userPendingAssertion.userId,
+            },
+          });
 				}
 
 				return user;
