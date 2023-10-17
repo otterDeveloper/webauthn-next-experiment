@@ -14,11 +14,10 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-
 // Necessary for Next auth
 model Account {
-    id                String  @id @default(cuid())
-    userId            String
+    id                String  @id @db.Uuid
+    userId            String  @db.Uuid
     type              String
     provider          String
     providerAccountId String
@@ -30,33 +29,75 @@ model Account {
     id_token          String? // @db.Text
     session_state     String?
     user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    metadata             Json                   @default("{}")
+    metadata          Json    @default("{}")
+
     @@unique([provider, providerAccountId])
+    @@map("accounts")
 }
 
 model Session {
-    id           String   @id @default(cuid())
+    id           String   @id @db.Uuid
     sessionToken String   @unique
-    userId       String
-    expires      DateTime
+    userId       String   @db.Uuid
+    expires      DateTime @db.Timestamptz(3)
     user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("sessions")
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    image         String?
+    id                   String                 @id @db.Uuid
+    name                 String?
+    email                String?                @unique
+    emailVerified        DateTime?
+    image                String?
     metadata             Json                   @default("{}")
-    accounts      Account[]
-    sessions      Session[]
+    accounts             Account[]
+    sessions             Session[]
+    authenticators       Authenticator[]
+    userPendingAssertion UserPendingAssertions?
+    createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+    updatedAt            DateTime               @updatedAt    @db.Timestamptz(3)
+
+    @@map("users")
 }
 
 model VerificationToken {
     identifier String
     token      String   @unique
-    expires    DateTime
+    expires    DateTime @db.Timestamptz(3)
 
     @@unique([identifier, token])
+    @@map("verification_tokens")
+}
+
+model UserPendingAssertions {
+    userId    String   @id @db.Uuid
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    challenge String
+    expiresAt DateTime @db.Timestamptz(3)
+}
+
+model PendingAssertions {
+    email        String   @id
+    futureUserId String   @db.Uuid @unique
+    challenge    String
+    expiresAt    DateTime @db.Timestamptz(3)
+}
+
+model Authenticator {
+    userId               String   @db.Uuid
+    credentialID         Bytes    @id
+    credentialPublicKey  Bytes
+    counter              BigInt
+    credentialDeviceType String
+    credentialBackedUp   Boolean
+    transports           String[]
+    createdAt            DateTime @default(now()) @db.Timestamptz(3)
+    updatedAt            DateTime @updatedAt    @db.Timestamptz(3)
+    user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    metadata             Json     @default("{}")
+    attestationObject    Bytes?
+    authenticatorExtensionResults Bytes?
+    @@map("authenticators")
 }
