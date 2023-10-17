@@ -1,23 +1,23 @@
+import { type Prisma } from "@prisma/client";
 import {
-	getServerSession,
-	type DefaultSession,
-	type NextAuthOptions,
-} from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { env } from "~/env.mjs";
-import superjson from "superjson";
-import { db } from "~/server/db";
-import { CustomPrismaAdapter } from "./CustomPrismaAdapter";
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
 import {
-	AuthenticationResponseJSON,
-	RegistrationResponseJSON,
+  type AuthenticationResponseJSON,
+  type RegistrationResponseJSON,
 } from "@simplewebauthn/server/script/deps";
 import {
-	verifyAuthenticationResponse,
-	verifyRegistrationResponse,
-} from "@simplewebauthn/server";
-import { Prisma } from "@prisma/client";
-import { deserialize, serialize } from "v8";
+  getServerSession,
+  type DefaultSession,
+  type NextAuthOptions,
+} from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import superjson from "superjson";
+import { serialize } from "v8";
+import { env } from "~/env.mjs";
+import { db } from "~/server/db";
+import { CustomPrismaAdapter } from "./CustomPrismaAdapter";
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
  * object and keep type safety.
@@ -161,7 +161,7 @@ export const authOptions: NextAuthOptions = {
 					const authenticationResponse =
 						superjson.parse<AuthenticationResponseJSON>(credentials.payload);
 
-          //TODO do this in sql
+					//TODO do this in sql
 					const authenticator = user.authenticators.find(
 						(authenticator) =>
 							authenticator.credentialID.toString("base64url") ===
@@ -194,25 +194,25 @@ export const authOptions: NextAuthOptions = {
 						return null;
 					}
 
-          const {verified, authenticationInfo} = verification;
+					const { verified, authenticationInfo } = verification;
 
-          if (!verified || !authenticationInfo) {
-            console.error("Authentication not verified");
-            return null;
-          }
-          await db.authenticator.update({
-            where: {
-              credentialID: authenticator.credentialID,
-            },
-            data: {
-              counter: authenticationInfo.newCounter,
-            },
-          });
-          await db.userPendingAssertions.delete({
-            where: {
-              userId: user.userPendingAssertion.userId,
-            },
-          });
+					if (!verified || !authenticationInfo) {
+						console.error("Authentication not verified");
+						return null;
+					}
+					await db.authenticator.update({
+						where: {
+							credentialID: authenticator.credentialID,
+						},
+						data: {
+							counter: authenticationInfo.newCounter,
+						},
+					});
+					await db.userPendingAssertions.delete({
+						where: {
+							userId: user.userPendingAssertion.userId,
+						},
+					});
 				}
 
 				return user;
