@@ -12,6 +12,7 @@ import { type FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { type Session } from "next-auth";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { env } from "~/env.mjs";
 
 import { getServerAuthSession } from "~/server/auth";
 import { db } from "~/server/db";
@@ -45,7 +46,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     session: opts.session,
     db,
-  };
+    env  };
 };
 
 /**
