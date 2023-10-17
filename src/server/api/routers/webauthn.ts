@@ -1,15 +1,13 @@
 import {
-	generateRegistrationOptions,
-	verifyAuthenticationResponse,
 	generateAuthenticationOptions,
+	generateRegistrationOptions
 } from "@simplewebauthn/server";
 import { uuidv7 } from "uuidv7";
 import { z } from "zod";
 
 import {
 	createTRPCRouter,
-	protectedProcedure,
-	publicProcedure,
+	publicProcedure
 } from "~/server/api/trpc";
 
 export const webauthnRouter = createTRPCRouter({
@@ -51,7 +49,7 @@ export const webauthnRouter = createTRPCRouter({
 					},
 				});
 				return {
-					operation: "login",
+					operation: "login" as const,
 					options: authenticationOptions,
 				};
 			} else {
@@ -85,7 +83,7 @@ export const webauthnRouter = createTRPCRouter({
                     },
 				});
 				return {
-					operation: "registration",
+					operation: "registration" as const,
 					options: registrationOptions,
 				};
 			}

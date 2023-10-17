@@ -1,5 +1,5 @@
 import { createTRPCRouter } from "~/server/api/trpc";
-import { webauthnRouter } from "./routers/auth";
+import { webauthnRouter } from "./routers/webauthn";
 
 /**
  * This is the primary router for your server.
