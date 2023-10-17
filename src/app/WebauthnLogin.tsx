@@ -25,23 +25,23 @@ import {
 import { trpc } from "~/utils/apiApp";
 
 export type EmailFieldProps = {
-    email: string;
-    setEmail: (email: string) => void;
-}
-const EmailField = ({email, setEmail}:EmailFieldProps) => (
-    <div className="space-y-1">
-        <Label htmlFor="email">Email</Label>
-        <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-        />
-    </div>
+	email: string;
+	setEmail: (email: string) => void;
+};
+const EmailField = ({ email, setEmail }: EmailFieldProps) => (
+	<div className="space-y-1">
+		<Label htmlFor="email">Email</Label>
+		<Input
+			id="email"
+			type="email"
+			value={email}
+			onChange={(e) => setEmail(e.target.value)}
+		/>
+	</div>
 );
 
 export const SignOutButton = () => (
-    <Button onClick={() => void signOut()}>Sign Out</Button>
+	<Button onClick={() => void signOut()}>Sign Out</Button>
 );
 
 const WebuthnLogin = () => {
@@ -60,7 +60,11 @@ const WebuthnLogin = () => {
 			});
 		},
 	});
-	
+	const errorDisplay = generateOption.error && (
+		<div className="text-red-500">
+			{generateOption.error.message}
+		</div>
+	);
 	return (
 		<Tabs defaultValue="register" className="min-w-[30%]">
 			<TabsList className="grid  w-full grid-cols-2">
@@ -73,11 +77,15 @@ const WebuthnLogin = () => {
 						<CardTitle>Register</CardTitle>
 						<CardDescription>
 							Register with a passkey or a FIDO2 Security Key
+							{errorDisplay}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-2">
 						<EmailField email={email} setEmail={setEmail} />
-						<Button onClick={() => generateOption.mutate({ email })}>
+						<Button
+							onClick={() =>
+								generateOption.mutate({ email, operation: "registration" })
+							}>
 							Register
 						</Button>
 					</CardContent>
@@ -90,10 +98,14 @@ const WebuthnLogin = () => {
 						<CardDescription>
 							Sign In with a passkey or a FIDO2 Security Key
 						</CardDescription>
+						{errorDisplay}
 					</CardHeader>
 					<CardContent className="space-y-2">
-						<EmailField email={email} setEmail={setEmail}/>
-						<Button onClick={() => generateOption.mutate({ email })}>
+						<EmailField email={email} setEmail={setEmail} />
+						<Button
+							onClick={() =>
+								generateOption.mutate({ email, operation: "login" })
+							}>
 							Sign In
 						</Button>
 					</CardContent>

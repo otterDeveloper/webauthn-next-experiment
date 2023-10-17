@@ -2,6 +2,7 @@ import {
 	generateAuthenticationOptions,
 	generateRegistrationOptions
 } from "@simplewebauthn/server";
+import { TRPCError } from "@trpc/server";
 import { uuidv7 } from "uuidv7";
 import { z } from "zod";
 
@@ -14,10 +15,11 @@ export const webauthnRouter = createTRPCRouter({
 	generateRegistrationOptions: publicProcedure
 		.input(
 			z.object({
+				operation: z.enum(["registration", "login"]),
 				email: z.string().email(),
 			}),
 		)
-		.mutation(async ({ input: { email }, ctx: { db, env } }) => {
+		.mutation(async ({ input: { email, operation }, ctx: { db, env } }) => {
 			const user = await db.user.findUnique({
 				where: { email },
 				include: { authenticators: true },
@@ -25,6 +27,13 @@ export const webauthnRouter = createTRPCRouter({
 
 			//if user exists and has authenticators, then login
 			if (user?.authenticators && user.authenticators?.length > 0) {
+				if (operation === "registration") {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						cause: "ALREADY_REGISTERED",
+						message: "The email address is already registered.",
+					})
+				};
 				const authenticators = user.authenticators;
 				const authenticationOptions = await generateAuthenticationOptions({
 					rpID: env.RP_ID,
@@ -53,6 +62,13 @@ export const webauthnRouter = createTRPCRouter({
 					options: authenticationOptions,
 				};
 			} else {
+				if (operation === "login") {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						cause: "NOT_REGISTERED",
+						message: "The email address is not registered.",
+					});
+				}
 				const newUserId = uuidv7();
 				const registrationOptions = await generateRegistrationOptions({
 					rpName: "WebAuthn Demo",
