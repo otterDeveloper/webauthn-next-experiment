@@ -5,6 +5,7 @@ import {
     type Adapter,
     type AdapterUser,
   } from "next-auth/adapters";
+import { uuidv7 } from "uuidv7";
 
 
   /* The point of this adapter is to add any extra metadata received from 
@@ -18,6 +19,7 @@ import {
       createUser: async ({ email, emailVerified, image, name, ...rest }) => {
         const data = await p.user.create({
           data: {
+            id: uuidv7(),
             email,
             emailVerified,
             image,
@@ -43,6 +45,7 @@ import {
       }) => {
         const data = await p.account.create({
           data: {
+            id: uuidv7(),
             provider,
             providerAccountId,
             type,
