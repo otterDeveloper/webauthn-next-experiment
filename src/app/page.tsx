@@ -1,5 +1,5 @@
 import { getAuth } from "~/utils/query";
-import WebAuthnLogin from "./WebauthnLogin";
+import WebAuthnLogin, { SignOutButton } from "./WebauthnLogin";
 
 export default async function IndexPage() {
 	const auth = await getAuth();
@@ -14,6 +14,9 @@ export default async function IndexPage() {
 					<div>
 						<h3>Welcome!</h3>
 						<p>You are logged in as {auth.user.email}</p>
+						<div className="text-center mt-2">
+						<SignOutButton />
+						</div>
 					</div>
 				)}
 			</div>

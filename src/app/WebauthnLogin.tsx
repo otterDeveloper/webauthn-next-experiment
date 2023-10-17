@@ -3,7 +3,7 @@ import {
 	startRegistration,
 	startAuthentication,
 } from "@simplewebauthn/browser";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "~/@/components/ui/button";
 import {
@@ -39,6 +39,11 @@ const EmailField = ({email, setEmail}:EmailFieldProps) => (
         />
     </div>
 );
+
+export const SignOutButton = () => (
+    <Button onClick={() => void signOut()}>Sign Out</Button>
+);
+
 const WebuthnLogin = () => {
 	const [email, setEmail] = useState("");
 	const generateOption = trpc.webauthn.generateRegistrationOptions.useMutation({
