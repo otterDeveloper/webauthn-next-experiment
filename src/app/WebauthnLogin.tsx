@@ -58,18 +58,18 @@ const WebuthnLogin = () => {
 	const { mutate, error, isLoading } =
 		trpc.webauthn.generateRegistrationOptions.useMutation({
 			onSuccess: async ({ operation, options }) => {
+				setIsAwaitingWebauthn(true);
 				const registrationPromise =
 					operation === "registration"
 						? startRegistration(options)
 						: startAuthentication(options);
-
-				setIsAwaitingWebauthn(true);
+				
 				const result = await registrationPromise;
+				setIsAwaitingWebauthn(false);
 				await signIn("webauthn", {
 					email,
 					payload: SuperJSON.stringify(result),
 				});
-				setIsAwaitingWebauthn(false);
 			},
 		});
 	const errorDisplay = error && (
