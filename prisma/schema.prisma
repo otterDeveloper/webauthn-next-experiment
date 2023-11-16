@@ -88,6 +88,7 @@ model PendingAssertions {
 model Authenticator {
     userId               String   @db.Uuid
     credentialID         Bytes    @id
+    friendlyName         String   @default("")
     credentialPublicKey  Bytes
     counter              BigInt
     credentialDeviceType String
