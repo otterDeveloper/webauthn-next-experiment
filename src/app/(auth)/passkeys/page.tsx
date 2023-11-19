@@ -26,7 +26,7 @@ const PasskeyPage = async ({}: PasskeyPageProps) => {
 		...passkey,
 		id: passkey.credentialID.toString("hex"),
 	}));
-
+	const allowDelete = passkeys.length > 1;
 	return (
 		<>
 			<h3 className="text-xl font-bold">Enrolled Passkeys</h3>
@@ -49,7 +49,9 @@ const PasskeyPage = async ({}: PasskeyPageProps) => {
 							<p>Last used: {passkey.updatedAt.toLocaleDateString()}</p>
 						</div>
 						<div className="flex flex-col space-y-2">
-							<button className="rounded bg-red-800 px-4 py-2 font-bold text-white hover:bg-red-700">
+							<button
+								className={`rounded bg-muted ${allowDelete ? "bg-red-800 hover:bg-red-700" : "bg-muted"} px-4 py-2 font-bold text-white`}
+								disabled={!allowDelete}>
 								Delete
 							</button>
 							<button className="rounded bg-blue-800 px-4 py-2 font-bold text-white hover:bg-blue-700">
