@@ -6,7 +6,7 @@
     "build": "next build",
     "db:push": "prisma db push",
     "dev": "next dev",
-    "vercel:build": "bun build && bun db:push",
+    "vercel:build": "bun run build && bun run db:push",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start"
