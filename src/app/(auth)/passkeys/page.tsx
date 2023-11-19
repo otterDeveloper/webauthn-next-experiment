@@ -2,9 +2,9 @@ import React from "react";
 import { db } from "~/server/db";
 import { getAuth } from "~/utils/query";
 import { FiKey } from "react-icons/fi";
-export type PasskeyPageProps = Record<string, unknown>;
 
-const PasskeyPage = async ({}: PasskeyPageProps) => {
+
+const PasskeyPage = async () => {
 	const auth = (await getAuth())!;
 	const {
 		user: { id },
