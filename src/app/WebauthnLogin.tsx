@@ -31,6 +31,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
 
 export type EmailFieldProps = {
 	email: string;
@@ -52,6 +53,40 @@ export const SignOutButton = () => (
 	<Button onClick={() => void signOut()}>Sign Out</Button>
 );
 
+export type WebauthnEnrollmentDialogProps = {
+	isLoading: boolean;
+	isAwaitingWebauthn: boolean;
+};
+
+export const WebauthnEnrollmentDialog = ({
+	isAwaitingWebauthn,
+	isLoading,
+}: WebauthnEnrollmentDialogProps) => {
+	return (
+		<Dialog open={isLoading}>
+			<DialogContent>
+				<DialogHeader>
+					{isAwaitingWebauthn ? (
+						<>
+							<DialogTitle>Follow the Instructions on your device</DialogTitle>
+							<DialogDescription>
+								You will be prompted to authenticate with your device
+							</DialogDescription>
+						</>
+					) : (
+						<>
+							<DialogTitle>Loading</DialogTitle>
+							<DialogDescription>
+								Getting ready to authenticate you...
+							</DialogDescription>
+						</>
+					)}
+				</DialogHeader>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
 const WebuthnLogin = () => {
 	const [email, setEmail] = useState("");
 	const [isAwaitingWebauthn, setIsAwaitingWebauthn] = useState(false);
@@ -63,7 +98,7 @@ const WebuthnLogin = () => {
 					operation === "registration"
 						? startRegistration(options)
 						: startAuthentication(options);
-				
+
 				const result = await registrationPromise;
 				setIsAwaitingWebauthn(false);
 				await signIn("webauthn", {
@@ -121,29 +156,37 @@ const WebuthnLogin = () => {
 					</Card>
 				</TabsContent>
 			</Tabs>
-			<Dialog open={isLoading}>
-				<DialogContent>
-					<DialogHeader>
-						{isAwaitingWebauthn ? (
-							<>
-								<DialogTitle>
-									Follow the Instructions on your device
-								</DialogTitle>
-								<DialogDescription>
-									You will be prompted to authenticate with your device
-								</DialogDescription>
-							</>
-						) : (
-							<>
-								<DialogTitle>Loading</DialogTitle>
-								<DialogDescription>
-									Getting ready to authenticate you...
-								</DialogDescription>
-							</>
-						)}
-					</DialogHeader>
-				</DialogContent>
-			</Dialog>
+			<WebauthnEnrollmentDialog
+				isLoading={isLoading}
+				isAwaitingWebauthn={isAwaitingWebauthn}
+			/>
+		</>
+	);
+};
+
+export const AddAuthenticatorButton = () => {
+	const addAuthenticatorMutation = trpc.webauthn.addAuthenticator.useMutation();
+	const router = useRouter();
+	const { mutate, isLoading } =
+		trpc.webauthn.getAddAuthenticatorOptions.useMutation({
+			onSuccess: async ({ options }) => {
+				const result = await startRegistration(options);
+				await addAuthenticatorMutation.mutateAsync({ response: result });
+				router.refresh();
+			},
+		});
+	return (
+		<>
+			<button
+				disabled={isLoading}
+				onClick={() => mutate()}
+				className={`rounded bg-fuchsia-900 px-4 py-2 font-bold text-white hover:bg-blue-700`}>
+				Add
+			</button>
+			<WebauthnEnrollmentDialog
+				isAwaitingWebauthn={addAuthenticatorMutation.isLoading}
+				isLoading={isLoading}
+			/>
 		</>
 	);
 };

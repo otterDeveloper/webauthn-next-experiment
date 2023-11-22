@@ -2,6 +2,7 @@ import React from "react";
 import { db } from "~/server/db";
 import { getAuth } from "~/utils/query";
 import { FiKey } from "react-icons/fi";
+import { AddAuthenticatorButton } from "~/app/WebauthnLogin";
 
 
 const PasskeyPage = async () => {
@@ -29,7 +30,10 @@ const PasskeyPage = async () => {
 	const allowDelete = passkeys.length > 1;
 	return (
 		<>
-			<h3 className="text-xl font-bold">Enrolled Passkeys</h3>
+			<div className="grid w-full grid-cols-[.5fr_3fr_1fr] space-x-4 py-2">
+				<h3 className="text-xl font-bold w-full col-span-2">Enrolled Passkeys</h3>
+				<AddAuthenticatorButton/>
+			</div>
 			<ul className="mt-2">
 				{passkeys.map((passkey) => (
 					<li
