@@ -1,16 +1,16 @@
 import { type Prisma } from "@prisma/client";
 import {
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
+	verifyAuthenticationResponse,
+	verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import {
-  type AuthenticationResponseJSON,
-  type RegistrationResponseJSON,
+	type AuthenticationResponseJSON,
+	type RegistrationResponseJSON,
 } from "@simplewebauthn/server/script/deps";
 import {
-  getServerSession,
-  type DefaultSession,
-  type NextAuthOptions,
+	getServerSession,
+	type DefaultSession,
+	type NextAuthOptions,
 } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import superjson from "superjson";
@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
 		strategy: "jwt",
 	},
 	callbacks: {
-		session: ({ session,  token }) => ({
+		session: ({ session, token }) => ({
 			...session,
 			user: {
 				...session.user,
@@ -61,9 +61,9 @@ export const authOptions: NextAuthOptions = {
 				token.id = user.id;
 			}
 			return token;
-		}
+		},
 	},
-	
+
 	adapter: CustomPrismaAdapter(db),
 	providers: [
 		CredentialsProvider({
@@ -100,65 +100,67 @@ export const authOptions: NextAuthOptions = {
 					// TODO: pass this trough Zod
 					const registrationResponse =
 						superjson.parse<RegistrationResponseJSON>(credentials.payload);
-					let verification;
+
 					try {
-						verification = await verifyRegistrationResponse({
+						const verification = await verifyRegistrationResponse({
 							response: registrationResponse,
 							expectedChallenge: challenge,
 							expectedRPID: env.RP_ID,
 							expectedOrigin: env.NEXTAUTH_URL,
 						});
+						const { verified, registrationInfo } = verification;
+
+						if (!verified || !registrationInfo) {
+							console.error("Registration not verified");
+							return null;
+						}
+
+						const userId = pendingAssertion.futureUserId;
+						const {
+							credentialID,
+							counter,
+							credentialPublicKey,
+							credentialBackedUp,
+							credentialDeviceType,
+							attestationObject,
+							authenticatorExtensionResults,
+							...rest
+						} = registrationInfo;
+						const user = await db.user.create({
+							data: {
+								id: userId,
+								email: credentials.email,
+								name: credentials.email,
+								authenticators: {
+									create: {
+										credentialID: Buffer.from(credentialID),
+										counter,
+										credentialBackedUp,
+										credentialPublicKey: Buffer.from(credentialPublicKey),
+										credentialDeviceType,
+										transports: registrationResponse.response.transports ?? [],
+										attestationObject: Buffer.from(attestationObject),
+										// this is probably very bad:
+										authenticatorExtensionResults: serialize(
+											authenticatorExtensionResults,
+										),
+										metadata: rest as Prisma.InputJsonValue,
+									},
+								},
+							},
+						});
+						
+						return user;
 					} catch (e) {
 						console.error(e);
 						return null;
-					}
-					const { verified, registrationInfo } = verification;
-
-					if (!verified || !registrationInfo) {
-						console.error("Registration not verified");
-						return null;
-					}
-
-					const userId = pendingAssertion.futureUserId;
-					const {
-						credentialID,
-						counter,
-						credentialPublicKey,
-						credentialBackedUp,
-						credentialDeviceType,
-						attestationObject,
-						authenticatorExtensionResults,
-						...rest
-					} = registrationInfo;
-					const user = await db.user.create({
-						data: {
-							id: userId,
-							email: credentials.email,
-							name: credentials.email,
-							authenticators: {
-								create: {
-									credentialID: Buffer.from(credentialID),
-									counter,
-									credentialBackedUp,
-									credentialPublicKey: Buffer.from(credentialPublicKey),
-									credentialDeviceType,
-									transports: registrationResponse.response.transports ?? [],
-									attestationObject: Buffer.from(attestationObject),
-									// this is probably very bad:
-									authenticatorExtensionResults: serialize(
-										authenticatorExtensionResults,
-									),
-									metadata: rest as Prisma.InputJsonValue,
-								},
+					} finally {
+						await db.pendingAssertions.delete({
+							where: {
+								email: credentials.email,
 							},
-						},
-					});
-					await db.pendingAssertions.delete({
-						where: {
-							email: credentials.email,
-						},
-					});
-					return user;
+						});
+					}
 				} else {
 					if (user.authenticators.length === 0) {
 						throw new Error("No authenticators found");
@@ -181,9 +183,8 @@ export const authOptions: NextAuthOptions = {
 						throw new Error("No authenticator found");
 					}
 
-					let verification;
 					try {
-						verification = await verifyAuthenticationResponse({
+						const verification = await verifyAuthenticationResponse({
 							response: authenticationResponse,
 							expectedChallenge: user.userPendingAssertion.challenge,
 							authenticator: {
@@ -199,30 +200,31 @@ export const authOptions: NextAuthOptions = {
 						if (!verification.verified) {
 							throw new Error("Verification failed");
 						}
+
+						const { verified, authenticationInfo } = verification;
+
+						if (!verified || !authenticationInfo) {
+							console.error("Authentication not verified");
+							return null;
+						}
+						await db.authenticator.update({
+							where: {
+								credentialID: authenticator.credentialID,
+							},
+							data: {
+								counter: authenticationInfo.newCounter,
+							},
+						});
 					} catch (e) {
 						console.error(e);
 						return null;
+					} finally {
+						await db.userPendingAssertions.delete({
+							where: {
+								userId: user.userPendingAssertion.userId,
+							},
+						});
 					}
-
-					const { verified, authenticationInfo } = verification;
-
-					if (!verified || !authenticationInfo) {
-						console.error("Authentication not verified");
-						return null;
-					}
-					await db.authenticator.update({
-						where: {
-							credentialID: authenticator.credentialID,
-						},
-						data: {
-							counter: authenticationInfo.newCounter,
-						},
-					});
-					await db.userPendingAssertions.delete({
-						where: {
-							userId: user.userPendingAssertion.userId,
-						},
-					});
 				}
 
 				return user;

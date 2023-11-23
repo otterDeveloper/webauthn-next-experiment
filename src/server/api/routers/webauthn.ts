@@ -234,9 +234,7 @@ export const webauthnRouter = createTRPCRouter({
 					},
 				});
 
-				await db.userPendingAssertions.delete({
-					where: { userId },
-				});
+				
 				return true;
 			} catch (e) {
 				console.error(e);
@@ -245,6 +243,8 @@ export const webauthnRouter = createTRPCRouter({
 					cause: "INVALID_RESPONSE",
 					message: "Could not verify response.",
 				});
+			} finally {
+				await db.userPendingAssertions.delete({ where: { userId } });
 			}
 		}),
 });
